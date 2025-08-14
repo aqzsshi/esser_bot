@@ -10,7 +10,13 @@ function loadCommands(client) {
   for (const file of commandFiles) {
     const commandPath = path.join(__dirname, 'handlers', file);
     const commandModule = require(commandPath);
-    if (commandModule.data && commandModule.execute) {
+    if (Array.isArray(commandModule.commands)) {
+      for (const cmd of commandModule.commands) {
+        if (cmd?.data && typeof cmd.execute === 'function') {
+          client.commands.set(cmd.data.name, cmd);
+        }
+      }
+    } else if (commandModule.data && typeof commandModule.execute === 'function') {
       client.commands.set(commandModule.data.name, commandModule);
     }
   }
