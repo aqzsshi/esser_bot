@@ -2,11 +2,12 @@ const { EmbedBuilder } = require('discord.js');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
+const { dataPath } = require('../utils/dataPath');
 
 const sentMessages = [];
 
 function getAllGuildSchedules() {
-  const configPath = path.join(__dirname, 'serverConfigs.json');
+  const configPath = dataPath('serverConfigs.json');
   try {
     if (!fs.existsSync(configPath)) return {};
     const serverConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -154,7 +155,7 @@ async function executeSetup(interaction, client) {
   else if (['байкеры', 'bikers'].includes(typeRaw)) { clubId = 'bikers'; clubName = 'Байкеры'; }
   else return interaction.reply({ content: '❌ Неизвестный тип клуба. Используйте: реднеки или байкеры.', ephemeral: true });
 
-  const configPath = path.join(__dirname, 'serverConfigs.json');
+  const configPath = dataPath('serverConfigs.json');
   let serverConfigs = {};
   try {
     if (fs.existsSync(configPath)) serverConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));

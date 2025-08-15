@@ -11,9 +11,10 @@ const {
 const fs = require('fs');
 const path = require('path');
 const { images } = require('../config.json');
+const { dataPath } = require('../utils/dataPath');
 
 // Путь к файлу с данными
-const DATA_FILE = path.join(__dirname, 'skillsData.json');
+const DATA_FILE = dataPath('skillsData.json');
 
 // Все доступные навыки
 const SKILLS = [

@@ -1,6 +1,7 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, InteractionType } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
+const { dataPath } = require('../utils/dataPath');
 
 const data = {
   name: 'заявка',
@@ -9,7 +10,7 @@ const data = {
 
 // Функция для получения настроек сервера
 function getServerConfig(guildId) {
-  const configPath = path.join(__dirname, 'serverConfigs.json');
+  const configPath = dataPath('serverConfigs.json');
   try {
     if (fs.existsSync(configPath)) {
       const serverConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -304,7 +305,7 @@ async function executeSetup(interaction, client) {
     return interaction.reply({ content: '❌ Неверный формат ссылки на фото. Укажите прямую ссылку на изображение.', ephemeral: true });
   }
 
-  const configPath = path.join(__dirname, 'serverConfigs.json');
+  const configPath = dataPath('serverConfigs.json');
   let serverConfigs = {};
   try {
     if (fs.existsSync(configPath)) {
