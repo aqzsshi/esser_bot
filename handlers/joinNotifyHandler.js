@@ -2,9 +2,10 @@ const { Events, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
+const { dataPath } = require('../utils/dataPath');
 
 function getJoinConfig(guildId) {
-  const configPath = path.join(__dirname, 'serverConfigs.json');
+  const configPath = dataPath('serverConfigs.json');
   try {
     if (fs.existsSync(configPath)) {
       const serverConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));

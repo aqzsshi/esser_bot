@@ -1,6 +1,7 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, InteractionType } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
+const { dataPath } = require('../utils/dataPath');
 
 const data = {
   name: 'заявка',
@@ -9,7 +10,7 @@ const data = {
 
 // Функция для получения настроек сервера
 function getServerConfig(guildId) {
-  const configPath = path.join(__dirname, 'serverConfigs.json');
+  const configPath = dataPath('serverConfigs.json');
   try {
     if (fs.existsSync(configPath)) {
       const serverConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -107,7 +108,7 @@ async function handleComponent(interaction, client) {
       console.error('Ошибка при показе модального окна:', error);
       await interaction.reply({ content: '❌ Произошла ошибка при открытии формы заявки. Попробуйте позже.', ephemeral: true });
     }
-    return;
+    return true;
   } else if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'applicationModal') {
     const guildId = interaction.guild.id;
     const serverConfig = getServerConfig(guildId);
@@ -126,7 +127,7 @@ async function handleComponent(interaction, client) {
       const familyChannel = await client.channels.fetch(serverConfig.familyChannelId);
       if (!familyChannel) {
         await interaction.editReply({ content: '❌ Ошибка: канал семьи не найден. Обратитесь к администратору.', ephemeral: true });
-        return;
+        return true;
       }
       
       const fields = [
@@ -157,13 +158,15 @@ async function handleComponent(interaction, client) {
       console.error('Ошибка при отправке заявки:', error);
       await interaction.editReply({ content: '❌ Произошла ошибка при отправке заявки. Попробуйте позже.', ephemeral: true });
     }
+    return true;
   } else if (interaction.isButton() && (interaction.customId.startsWith('accept_') || interaction.customId.startsWith('decline_'))) {
     const userId = interaction.customId.split('_')[1];
     const status = interaction.customId.startsWith('accept_') ? '🟢 Принято' : '🔴 Отклонено';
     const message = interaction.message;
     const embed = message.embeds[0];
     if (!embed || !embed.description) {
-      return interaction.reply({ content: '❗ Ошибка: невозможно обновить статус. Описание не найдено.', ephemeral: true });
+      await interaction.reply({ content: '❗ Ошибка: невозможно обновить статус. Описание не найдено.', ephemeral: true });
+      return true;
     }
     let newDescription = embed.description.replace(/Статус: .*/, `Статус: ${status}\nРассмотрел: <@${interaction.user.id}>`);
     const updatedEmbed = EmbedBuilder.from(embed)
@@ -209,11 +212,144 @@ async function handleComponent(interaction, client) {
       console.error('Ошибка при отправке ЛС или выдаче роли:', err);
     }
     await interaction.reply({ content: `Вы изменили статус на **${status}**.`, ephemeral: true });
+    return true;
   }
+  return false;
 }
-
-module.exports = { data, execute, handleComponent };
 
 function formatDate(date) {
   return date.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }).replace(',', '');
 }
+
+// ==== Команда настройки модуля заявок (объединено из adminApplicationSetupCommand) ====
+const setupData = {
+  name: 'заявки_настройка',
+  description: 'Настроить модуль заявок для сервера (только для администраторов)',
+  options: [
+    {
+      name: 'канал',
+      description: 'ID канала для отправки заявок',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'роли_уведомления',
+      description: 'ID ролей для уведомлений (через запятую)',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'роль_принятия',
+      description: 'ID роли для выдачи при принятии заявки',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'фото_заявки',
+      description: 'Ссылка на фото для заявок',
+      type: 3,
+      required: true
+    }
+  ]
+};
+
+async function executeSetup(interaction, client) {
+  if (!interaction.member.permissions.has('Administrator')) {
+    return interaction.reply({
+      content: '❌ У вас нет прав для настройки модуля заявок. Требуются права администратора.',
+      ephemeral: true
+    });
+  }
+
+  const guildId = interaction.guild.id;
+  const channelId = interaction.options.getString('канал');
+  const mentionRolesStr = interaction.options.getString('роли_уведомления');
+  const callRoleId = interaction.options.getString('роль_принятия');
+  const applicationPhotoUrl = interaction.options.getString('фото_заявки');
+
+  if (!channelId.match(/^\d+$/)) {
+    return interaction.reply({ content: '❌ Неверный формат ID канала. ID должен состоять только из цифр.', ephemeral: true });
+  }
+  if (!callRoleId.match(/^\d+$/)) {
+    return interaction.reply({ content: '❌ Неверный формат ID роли принятия. ID должен состоять только из цифр.', ephemeral: true });
+  }
+
+  try {
+    const channel = await interaction.guild.channels.fetch(channelId);
+    if (!channel) return interaction.reply({ content: '❌ Канал с указанным ID не найден на этом сервере.', ephemeral: true });
+  } catch {
+    return interaction.reply({ content: '❌ Не удалось найти канал с указанным ID.', ephemeral: true });
+  }
+
+  try {
+    const role = await interaction.guild.roles.fetch(callRoleId);
+    if (!role) return interaction.reply({ content: '❌ Роль с указанным ID не найдена на этом сервере.', ephemeral: true });
+  } catch {
+    return interaction.reply({ content: '❌ Не удалось найти роль с указанным ID.', ephemeral: true });
+  }
+
+  const mentionRoleIds = mentionRolesStr.split(',').map(id => id.trim()).filter(id => id.match(/^\d+$/));
+  if (mentionRoleIds.length === 0) {
+    return interaction.reply({ content: '❌ Не указаны корректные ID ролей для уведомлений.', ephemeral: true });
+  }
+  for (const roleId of mentionRoleIds) {
+    try {
+      const role = await interaction.guild.roles.fetch(roleId);
+      if (!role) return interaction.reply({ content: `❌ Роль с ID ${roleId} не найдена на этом сервере.`, ephemeral: true });
+    } catch {
+      return interaction.reply({ content: `❌ Не удалось найти роль с ID ${roleId}.`, ephemeral: true });
+    }
+  }
+
+  if (!applicationPhotoUrl.match(/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp)$/i)) {
+    return interaction.reply({ content: '❌ Неверный формат ссылки на фото. Укажите прямую ссылку на изображение.', ephemeral: true });
+  }
+
+  const configPath = dataPath('serverConfigs.json');
+  let serverConfigs = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      serverConfigs = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch (error) {
+    console.error('Ошибка чтения конфигурации серверов:', error);
+  }
+
+  serverConfigs[guildId] = {
+    ...serverConfigs[guildId],
+    applications: {
+      familyChannelId: channelId,
+      mentionRoleIds: mentionRoleIds,
+      callRoleIds: [callRoleId],
+      applicationPhotoUrl: applicationPhotoUrl
+    }
+  };
+
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(serverConfigs, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Ошибка сохранения конфигурации серверов:', error);
+    return interaction.reply({ content: '❌ Произошла ошибка при сохранении настроек.', ephemeral: true });
+  }
+
+  const confirmEmbed = new EmbedBuilder()
+    .setTitle('✅ Настройки заявок обновлены!')
+    .setColor('#00FF00')
+    .addFields(
+      { name: '📺 Канал заявок', value: `<#${channelId}>`, inline: true },
+      { name: '🔔 Роли уведомлений', value: mentionRoleIds.map(id => `<@&${id}>`).join(', '), inline: true },
+      { name: '🎯 Роль принятия', value: `<@&${callRoleId}>`, inline: true },
+      { name: '🖼️ Фото заявок', value: applicationPhotoUrl, inline: false }
+    )
+    .setFooter({ text: `Настроил: ${interaction.user.tag}` })
+    .setTimestamp();
+
+  await interaction.reply({ embeds: [confirmEmbed] });
+}
+
+const commands = [
+  { data, execute, handleComponent },
+  { data: setupData, execute: executeSetup, handleComponent }
+];
+
+module.exports = { data, execute, handleComponent, commands };

@@ -1,0 +1,65 @@
+{
+  "1031904607766577182": {
+    "clubSchedules": [
+      {
+        "clubId": "rednecks",
+        "name": "Реднеки",
+        "channelId": "1322568346029264986",
+        "roleId": "1315348012729372742",
+        "times": [
+          "10:50",
+          "13:50",
+          "13:58",
+          "02:39"
+        ],
+        "image": "https://i.ibb.co/8nmDpF27/image.png"
+      }
+    ],
+    "applications": {
+      "familyChannelId": "1322568347107459132",
+      "mentionRoleIds": [
+        "1315348012729372742"
+      ],
+      "callRoleIds": [
+        "1315348012729372742"
+      ],
+      "applicationPhotoUrl": "https://i.ibb.co/8nmDpF27/image.png"
+    },
+    "joinNotify": {
+      "channelId": "1129838851767156798"
+    }
+  },
+  "973961679228502016": {
+    "applications": {
+      "familyChannelId": "1295713877572718624",
+      "mentionRoleIds": [
+        "994739130774863932",
+        "1295715648730697758",
+        "1368364895216734298"
+      ],
+      "callRoleIds": [
+        "1377587794691489912"
+      ],
+      "applicationPhotoUrl": "https://i.ibb.co/gFjBYG4y/image.png"
+    },
+    "clubSchedules": [
+      {
+        "clubId": "rednecks",
+        "name": "Реднеки",
+        "channelId": "1371862380471910440",
+        "roleId": "1367237509024710798",
+        "times": [
+          "11:00",
+          "14:00",
+          "17:00",
+          "20:00",
+          "22:00"
+        ],
+        "image": "https://i.ibb.co/gFjBYG4y/image.png"
+      }
+    ],
+    "joinNotify": {
+      "channelId": "1366909166676873216"
+    }
+  }
+}
