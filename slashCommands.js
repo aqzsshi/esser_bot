@@ -87,13 +87,13 @@ function handleInteractions(client) {
       }
 
       // ===== Кнопки, селекты, модалки =====
-      if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu()) {
+      if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu() || interaction.isRoleSelectMenu() || interaction.isUserSelectMenu()) {
           let handled = false;
 
           // Проверка всех зарегистрированных команд
           for (const cmd of client.commands.values()) {
               // Обработка кнопок / селектов / модалок в handleComponent
-              if (typeof cmd.handleComponent === 'function') {
+              if (typeof cmd.handleComponent === 'function' && (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isRoleSelectMenu() || interaction.isUserSelectMenu())) {
                   try {
                       const wasHandled = await cmd.handleComponent(interaction, client);
                       if (wasHandled) {
@@ -105,7 +105,6 @@ function handleInteractions(client) {
                   }
               }
 
-              // Доп. обработка модалок, если они в handleModal
               if (interaction.isModalSubmit() && typeof cmd.handleModal === 'function') {
                   try {
                       const wasHandled = await cmd.handleModal(interaction, client);
@@ -115,6 +114,18 @@ function handleInteractions(client) {
                       }
                   } catch (err) {
                       console.error(`Ошибка в handleModal команды ${cmd.data?.name}:`, err);
+                  }
+              }
+
+              if ((interaction.isStringSelectMenu() || interaction.isRoleSelectMenu() || interaction.isUserSelectMenu()) && typeof cmd.handleSelect === 'function') {
+                  try {
+                      const wasHandled = await cmd.handleSelect(interaction, client);
+                      if (wasHandled) {
+                          handled = true;
+                          break;
+                      }
+                  } catch (err) {
+                      console.error(`Ошибка в handleSelect команды ${cmd.data?.name}:`, err);
                   }
               }
           }
