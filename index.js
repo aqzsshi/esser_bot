@@ -25,6 +25,6 @@ client.once('ready', async () => {
 
 require('./handlers/clubSchedulerHandler')(client);
 require('./handlers/joinNotifyHandler')(client);
-require('./handlers/gameResultsHandler')(client);
+// gameResultsHandler загружается автоматически через loadCommands
 
 client.login(token);
