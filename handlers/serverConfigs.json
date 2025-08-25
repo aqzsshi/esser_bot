@@ -15,32 +15,20 @@
         "image": "https://i.ibb.co/8nmDpF27/image.png"
       }
     ],
-    "applications": {
-      "familyChannelId": "1322568347107459132",
-      "mentionRoleIds": [
-        "1315348012729372742"
-      ],
-      "callRoleIds": [
-        "1315348012729372742"
-      ],
-      "applicationPhotoUrl": "https://i.ibb.co/8nmDpF27/image.png"
+    "gameResults": {
+      "channelId": "1322568347107459132",
+      "winPhotoUrl": "https://i.ibb.co/8nmDpF27/image.png",
+      "losePhotoUrl": "https://i.ibb.co/8nmDpF27/image.png"
     },
     "joinNotify": {
       "channelId": "1129838851767156798"
     }
   },
   "973961679228502016": {
-    "applications": {
-      "familyChannelId": "1295713877572718624",
-      "mentionRoleIds": [
-        "994739130774863932",
-        "1295715648730697758",
-        "1368364895216734298"
-      ],
-      "callRoleIds": [
-        "1377587794691489912"
-      ],
-      "applicationPhotoUrl": "https://i.ibb.co/gFjBYG4y/image.png"
+    "gameResults": {
+      "channelId": "1295713877572718624",
+      "winPhotoUrl": "https://i.ibb.co/gFjBYG4y/image.png",
+      "losePhotoUrl": "https://i.ibb.co/gFjBYG4y/image.png"
     },
     "clubSchedules": [
       {
