@@ -67,7 +67,7 @@ function handleInteractions(client) {
           if (interaction.channel && interaction.channel.type === 1 && interaction.commandName !== 'клубы') {
               await interaction.reply({
                   content: '❌ Эту команду нельзя вызывать в личных сообщениях бота.',
-                  ephemeral: true
+                  flags: 64
               });
               return;
           }
@@ -80,7 +80,7 @@ function handleInteractions(client) {
           } catch (error) {
               console.error(error);
               if (!interaction.replied) {
-                  await interaction.reply({ content: 'Произошла ошибка при выполнении команды.', ephemeral: true });
+                  await interaction.reply({ content: 'Произошла ошибка при выполнении команды.', flags: 64 });
               }
           }
           return;

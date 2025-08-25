@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -62,10 +62,10 @@ const vsCommand = {
         const serverConfig = configs[guildId];
 
         if (!serverConfig || !serverConfig.gameResults) {
-                    await interaction.reply({
-            content: '❌ Модуль отчетности результатов игр не настроен для этого сервера. Администратор должен использовать команду `/вс_настройка` для настройки.',
-            flags: 64
-        });
+            await interaction.reply({
+                content: '❌ Модуль отчетности результатов игр не настроен для этого сервера. Администратор должен использовать команду `/вс_настройка` для настройки.',
+                flags: 64
+            });
             return;
         }
 
@@ -84,7 +84,7 @@ const vsCommand = {
         const categoryRow = new ActionRowBuilder().addComponents(categorySelect);
 
         await interaction.reply({
-            content: '🎮 Выберите категорию карт для отчета о результате игры:',
+            content: '🎮 **Отчет о результате игры**\n\nВыберите категорию карт для создания отчета:',
             components: [categoryRow],
             flags: 64
         });
@@ -110,7 +110,7 @@ const vsCommand = {
             const mapRow = new ActionRowBuilder().addComponents(mapSelect);
 
             await interaction.update({
-                content: `🗺️ Выбрана категория: **${selectedCategory}**\nТеперь выберите карту:`,
+                content: `🗺️ **Выбрана категория:** ${selectedCategory}\n\nТеперь выберите конкретную карту:`,
                 components: [mapRow]
             });
             return true;
@@ -133,7 +133,7 @@ const vsCommand = {
             const resultRow = new ActionRowBuilder().addComponents(winButton, loseButton);
 
             await interaction.update({
-                content: `🎯 Выбрана карта: **${selectedMap}** (${category})\nТеперь выберите результат игры:`,
+                content: `🎯 **Выбрана карта:** ${selectedMap}\n**Категория:** ${category}\n\nТеперь выберите результат игры:`,
                 components: [resultRow]
             });
             return true;
@@ -153,43 +153,87 @@ const vsCommand = {
                 return true;
             }
 
+            // Создаем модальное окно для ввода игроков
+            const modal = new ModalBuilder()
+                .setCustomId(`players_modal_${result}_${map}`)
+                .setTitle('Добавление игроков');
+
+            const playersInput = new TextInputBuilder()
+                .setCustomId('players_input')
+                .setLabel('Список игроков (через запятую)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('Введите никнеймы игроков через запятую, например: Player1, Player2, Player3')
+                .setRequired(true)
+                .setMaxLength(1000);
+
+            const firstActionRow = new ActionRowBuilder().addComponents(playersInput);
+            modal.addComponents(firstActionRow);
+
+            await interaction.showModal(modal);
+            return true;
+        }
+
+        return false;
+    },
+
+    async handleModal(interaction, client) {
+        if (interaction.customId.startsWith('players_modal_')) {
+            const [, , result, map] = interaction.customId.split('_');
+            const playersText = interaction.fields.getTextInputValue('players_input');
+            
+            // Разбираем список игроков
+            const players = playersText.split(',').map(p => p.trim()).filter(p => p.length > 0);
+            
+            if (players.length === 0) {
+                await interaction.reply({
+                    content: '❌ Не удалось определить игроков. Проверьте формат ввода.',
+                    flags: 64
+                });
+                return true;
+            }
+
+            const guildId = interaction.guildId;
+            const configs = loadServerConfigs();
+            const serverConfig = configs[guildId];
+
             try {
                 // Отправляем отчет в указанный канал
                 const channel = await client.channels.fetch(serverConfig.gameResults.channelId);
                 if (!channel) {
-                    await interaction.update({
+                    await interaction.reply({
                         content: '❌ Канал для отчетов не найден. Обратитесь к администратору.',
-                        components: []
+                        flags: 64
                     });
                     return true;
                 }
 
-                // Создаем embed сообщение
+                // Создаем embed сообщение с большим фото снизу
                 const embed = new EmbedBuilder()
                     .setColor(result === 'win' ? '#00ff00' : '#ff0000')
                     .setTitle(`🎮 Результат игры на карте ${map}`)
                     .setDescription(`**Результат:** ${result === 'win' ? '🏆 Победа' : '💀 Поражение'}`)
                     .addFields(
-                        { name: '👤 Игрок', value: interaction.user.toString(), inline: true },
+                        { name: '👥 Участники', value: players.map(p => `• ${p}`).join('\n'), inline: false },
                         { name: '🗺️ Карта', value: map, inline: true },
-                        { name: '📅 Дата', value: new Date().toLocaleString('ru-RU'), inline: true }
+                        { name: '📅 Дата', value: new Date().toLocaleString('ru-RU'), inline: true },
+                        { name: '📝 Отчет составил', value: interaction.user.toString(), inline: true }
                     )
-                    .setThumbnail(result === 'win' ? serverConfig.gameResults.winPhotoUrl : serverConfig.gameResults.losePhotoUrl)
+                    .setImage(result === 'win' ? serverConfig.gameResults.winPhotoUrl : serverConfig.gameResults.losePhotoUrl)
                     .setFooter({ text: 'Отчет о результате игры' })
                     .setTimestamp();
 
                 await channel.send({ embeds: [embed] });
 
-                await interaction.update({
-                    content: `✅ Отчет о ${result === 'win' ? 'победе' : 'поражении'} на карте **${map}** успешно отправлен!`,
-                    components: []
+                await interaction.reply({
+                    content: `✅ **Отчет успешно отправлен!**\n\n**Карта:** ${map}\n**Результат:** ${result === 'win' ? 'Победа' : 'Поражение'}\n**Игроки:** ${players.length}\n**Канал:** ${channel.toString()}`,
+                    flags: 64
                 });
 
             } catch (error) {
                 console.error('Ошибка при отправке отчета:', error);
-                await interaction.update({
+                await interaction.reply({
                     content: '❌ Произошла ошибка при отправке отчета. Попробуйте позже.',
-                    components: []
+                    flags: 64
                 });
             }
             return true;
