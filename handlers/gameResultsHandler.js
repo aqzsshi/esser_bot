@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -48,6 +48,27 @@ function hasAdminPermissions(member) {
     return member.permissions.has(PermissionFlagsBits.Administrator) || 
            member.permissions.has(PermissionFlagsBits.ManageGuild) ||
            member.roles.cache.some(role => role.permissions.has(PermissionFlagsBits.Administrator));
+}
+
+// Функция для получения списка участников сервера
+function getServerMembers(guild) {
+    const members = [];
+    guild.members.cache.forEach(member => {
+        if (!member.user.bot) {
+            members.push({
+                label: member.displayName || member.user.username,
+                value: member.id,
+                description: `@${member.user.username}`,
+                emoji: '👤'
+            });
+        }
+    });
+    
+    // Сортируем по алфавиту
+    members.sort((a, b) => a.label.localeCompare(b.label));
+    
+    // Ограничиваем до 25 участников (лимит Discord.js)
+    return members.slice(0, 25);
 }
 
 // Команда /вс - выбор карты и результата
@@ -141,6 +162,47 @@ const vsCommand = {
 
         if (interaction.customId.startsWith('result_')) {
             const [, result, map] = interaction.customId.split('_');
+            
+            // Получаем список участников сервера
+            const members = getServerMembers(interaction.guild);
+            
+            if (members.length === 0) {
+                await interaction.update({
+                    content: '❌ Не удалось получить список участников сервера.',
+                    components: []
+                });
+                return true;
+            }
+
+            // Создаем селект меню для выбора игроков
+            const playersSelect = new StringSelectMenuBuilder()
+                .setCustomId(`players_select_${result}_${map}`)
+                .setPlaceholder('Выберите игроков (можно выбрать несколько)')
+                .setMinValues(1)
+                .setMaxValues(Math.min(members.length, 10)) // Максимум 10 игроков
+                .addOptions(members);
+
+            const playersRow = new ActionRowBuilder().addComponents(playersSelect);
+
+            await interaction.update({
+                content: `🎮 **Выбран результат:** ${result === 'win' ? '🏆 Победа' : '💀 Поражение'}\n**Карта:** ${map}\n\nТеперь выберите игроков, участвовавших в игре:`,
+                components: [playersRow]
+            });
+            return true;
+        }
+
+        if (interaction.customId.startsWith('players_select_')) {
+            const [, , result, map] = interaction.customId.split('_');
+            const selectedPlayerIds = interaction.values;
+            
+            if (selectedPlayerIds.length === 0) {
+                await interaction.update({
+                    content: '❌ Не выбрано ни одного игрока.',
+                    components: []
+                });
+                return true;
+            }
+
             const guildId = interaction.guildId;
             const configs = loadServerConfigs();
             const serverConfig = configs[guildId];
@@ -153,59 +215,22 @@ const vsCommand = {
                 return true;
             }
 
-            // Создаем модальное окно для ввода игроков
-            const modal = new ModalBuilder()
-                .setCustomId(`players_modal_${result}_${map}`)
-                .setTitle('Добавление игроков');
-
-            const playersInput = new TextInputBuilder()
-                .setCustomId('players_input')
-                .setLabel('Список игроков (через запятую)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Введите никнеймы игроков через запятую, например: Player1, Player2, Player3')
-                .setRequired(true)
-                .setMaxLength(1000);
-
-            const firstActionRow = new ActionRowBuilder().addComponents(playersInput);
-            modal.addComponents(firstActionRow);
-
-            await interaction.showModal(modal);
-            return true;
-        }
-
-        return false;
-    },
-
-    async handleModal(interaction, client) {
-        if (interaction.customId.startsWith('players_modal_')) {
-            const [, , result, map] = interaction.customId.split('_');
-            const playersText = interaction.fields.getTextInputValue('players_input');
-            
-            // Разбираем список игроков
-            const players = playersText.split(',').map(p => p.trim()).filter(p => p.length > 0);
-            
-            if (players.length === 0) {
-                await interaction.reply({
-                    content: '❌ Не удалось определить игроков. Проверьте формат ввода.',
-                    flags: 64
-                });
-                return true;
-            }
-
-            const guildId = interaction.guildId;
-            const configs = loadServerConfigs();
-            const serverConfig = configs[guildId];
-
             try {
                 // Отправляем отчет в указанный канал
                 const channel = await client.channels.fetch(serverConfig.gameResults.channelId);
                 if (!channel) {
-                    await interaction.reply({
+                    await interaction.update({
                         content: '❌ Канал для отчетов не найден. Обратитесь к администратору.',
-                        flags: 64
+                        components: []
                     });
                     return true;
                 }
+
+                // Получаем информацию об игроках
+                const players = selectedPlayerIds.map(id => {
+                    const member = interaction.guild.members.cache.get(id);
+                    return member ? member.displayName || member.user.username : `ID: ${id}`;
+                });
 
                 // Создаем embed сообщение с большим фото снизу
                 const embed = new EmbedBuilder()
@@ -224,16 +249,16 @@ const vsCommand = {
 
                 await channel.send({ embeds: [embed] });
 
-                await interaction.reply({
+                await interaction.update({
                     content: `✅ **Отчет успешно отправлен!**\n\n**Карта:** ${map}\n**Результат:** ${result === 'win' ? 'Победа' : 'Поражение'}\n**Игроки:** ${players.length}\n**Канал:** ${channel.toString()}`,
-                    flags: 64
+                    components: []
                 });
 
             } catch (error) {
                 console.error('Ошибка при отправке отчета:', error);
-                await interaction.reply({
+                await interaction.update({
                     content: '❌ Произошла ошибка при отправке отчета. Попробуйте позже.',
-                    flags: 64
+                    components: []
                 });
             }
             return true;
