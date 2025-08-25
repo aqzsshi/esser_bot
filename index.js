@@ -23,7 +23,6 @@ client.once('ready', async () => {
   await registerCommands(client);
 });
 
-require('./handlers/clubSchedulerHandler')(client);
 require('./handlers/joinNotifyHandler')(client);
 // gameResultsHandler загружается автоматически через loadCommands
 

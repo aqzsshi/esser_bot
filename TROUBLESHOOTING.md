@@ -119,7 +119,7 @@ Missing Permissions
 ```
 handlers/
 ├── gameResultsHandler.js    # Новый модуль отчетности
-├── clubSchedulerHandler.js  # Управление клубами
+├── (удален) clubSchedulerHandler.js  # Больше не используется
 ├── joinNotifyHandler.js     # Уведомления о присоединении
 ├── skillsHandler.js         # Система навыков
 ├── utilityCommandsHandler.js # Утилиты
