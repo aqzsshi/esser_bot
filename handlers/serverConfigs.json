@@ -17,6 +17,7 @@
     ],
     "gameResults": {
       "channelId": "1322568347107459132",
+      "allowedRoleIds": ["1315348012729372742"],
       "winPhotoUrl": "https://i.ibb.co/8nmDpF27/image.png",
       "losePhotoUrl": "https://i.ibb.co/8nmDpF27/image.png"
     },
@@ -27,6 +28,7 @@
   "973961679228502016": {
     "gameResults": {
       "channelId": "1295713877572718624",
+      "allowedRoleIds": ["994739130774863932"],
       "winPhotoUrl": "https://i.ibb.co/gFjBYG4y/image.png",
       "losePhotoUrl": "https://i.ibb.co/gFjBYG4y/image.png"
     },

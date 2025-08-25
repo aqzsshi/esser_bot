@@ -2,19 +2,21 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 const fs = require('fs');
 const path = require('path');
 
-// Список карт для World of Tanks (31 карта)
-const MAPS = [
-    'Химмельсдорф', 'Эрленберг', 'Маллиновка', 'Прованс', 'Харьков',
-    'Степи', 'Энск', 'Ласвилль', 'Руинберг', 'Зигфрид Линия',
-    'Вестфилд', 'Дорога', 'Курильские острова', 'Сердце России', 'Париж',
-    'Берлин', 'Лондон', 'Нормандия', 'Африканский корпус', 'Италия',
-    'Польша', 'Чехия', 'Словакия', 'Венгрия', 'Румыния',
-    'Болгария', 'Греция', 'Турция', 'Иран', 'Ирак', 'Сирия'
-];
-
-// Разбиваем карты на два меню (Discord.js лимит: 25 опций)
-const MAPS_PART1 = MAPS.slice(0, 16); // Первые 16 карт
-const MAPS_PART2 = MAPS.slice(16);     // Оставшиеся 15 карт
+// Список карт для World of Tanks, разбитый на категории
+const MAP_CATEGORIES = {
+    'Классические карты': [
+        'Химмельсдорф', 'Эрленберг', 'Маллиновка', 'Прованс', 'Харьков',
+        'Степи', 'Энск', 'Ласвилль', 'Руинберг', 'Зигфрид Линия'
+    ],
+    'Современные карты': [
+        'Вестфилд', 'Дорога', 'Курильские острова', 'Сердце России', 'Париж',
+        'Берлин', 'Лондон', 'Нормандия', 'Африканский корпус', 'Италия'
+    ],
+    'Европейские карты': [
+        'Польша', 'Чехия', 'Словакия', 'Венгрия', 'Румыния',
+        'Болгария', 'Греция', 'Турция', 'Иран', 'Ирак', 'Сирия'
+    ]
+};
 
 // Загрузка конфигурации серверов
 function loadServerConfigs() {
@@ -48,17 +50,25 @@ function hasAdminPermissions(member) {
            member.roles.cache.some(role => role.permissions.has(PermissionFlagsBits.Administrator));
 }
 
-// Функция для получения списка участников сервера
-function getServerMembers(guild) {
+// Функция для получения списка участников сервера с нужными ролями
+function getServerMembers(guild, allowedRoleIds) {
     const members = [];
+    
     guild.members.cache.forEach(member => {
         if (!member.user.bot) {
-            members.push({
-                label: member.displayName || member.user.username,
-                value: member.id,
-                description: `@${member.user.username}`,
-                emoji: '👤'
-            });
+            // Проверяем, есть ли у участника хотя бы одна из разрешенных ролей
+            const hasAllowedRole = member.roles.cache.some(role => 
+                allowedRoleIds.includes(role.id)
+            );
+            
+            if (hasAllowedRole) {
+                members.push({
+                    label: member.displayName || member.user.username,
+                    value: member.id,
+                    description: `@${member.user.username}`,
+                    emoji: '👤'
+                });
+            }
         }
     });
     
@@ -88,36 +98,40 @@ const vsCommand = {
             return;
         }
 
-        // Создаем кнопки для выбора части карт
-        const part1Button = new ButtonBuilder()
-            .setCustomId('maps_part1')
-            .setLabel('Карты 1-16')
-            .setStyle(ButtonStyle.Primary);
+        // Создаем селект меню для выбора категории карт
+        const categorySelect = new StringSelectMenuBuilder()
+            .setCustomId('category_select')
+            .setPlaceholder('Выберите категорию карт')
+            .addOptions(
+                Object.keys(MAP_CATEGORIES).map((category, index) => ({
+                    label: category,
+                    value: category,
+                    description: `${MAP_CATEGORIES[category].length} карт`
+                }))
+            );
 
-        const part2Button = new ButtonBuilder()
-            .setCustomId('maps_part2')
-            .setLabel('Карты 17-31')
-            .setStyle(ButtonStyle.Primary);
-
-        const mapsRow = new ActionRowBuilder().addComponents(part1Button, part2Button);
+        const categoryRow = new ActionRowBuilder().addComponents(categorySelect);
 
         await interaction.reply({
-            content: '🎮 **Отчет о результате игры**\n\nВыберите группу карт:',
-            components: [mapsRow],
+            content: '🎮 **Отчет о результате игры**\n\nВыберите категорию карт для создания отчета:',
+            components: [categoryRow],
             flags: 64
         });
     },
 
     async handleComponent(interaction, client) {
-        if (interaction.customId === 'maps_part1') {
-            // Создаем селект меню для первых 16 карт
+        if (interaction.customId === 'category_select') {
+            const selectedCategory = interaction.values[0];
+            const maps = MAP_CATEGORIES[selectedCategory];
+            
+            // Создаем селект меню для выбора карты из выбранной категории
             const mapSelect = new StringSelectMenuBuilder()
                 .setCustomId('map_select')
-                .setPlaceholder('Выберите карту (1-16)')
+                .setPlaceholder(`Выберите карту из категории "${selectedCategory}"`)
                 .addOptions(
-                    MAPS_PART1.map((map, index) => ({
+                    maps.map((map, index) => ({
                         label: map,
-                        value: map,
+                        value: `${selectedCategory}:${map}`,
                         description: `Карта ${index + 1}`
                     }))
                 );
@@ -125,36 +139,14 @@ const vsCommand = {
             const mapRow = new ActionRowBuilder().addComponents(mapSelect);
 
             await interaction.update({
-                content: '🗺️ **Группа карт 1-16**\n\nВыберите конкретную карту:',
-                components: [mapRow]
-            });
-            return true;
-        }
-
-        if (interaction.customId === 'maps_part2') {
-            // Создаем селект меню для оставшихся 15 карт
-            const mapSelect = new StringSelectMenuBuilder()
-                .setCustomId('map_select')
-                .setPlaceholder('Выберите карту (17-31)')
-                .addOptions(
-                    MAPS_PART2.map((map, index) => ({
-                        label: map,
-                        value: map,
-                        description: `Карта ${index + 17}`
-                    }))
-                );
-
-            const mapRow = new ActionRowBuilder().addComponents(mapSelect);
-
-            await interaction.update({
-                content: '🗺️ **Группа карт 17-31**\n\nВыберите конкретную карту:',
+                content: `🗺️ **Выбрана категория:** ${selectedCategory}\n\nТеперь выберите конкретную карту:`,
                 components: [mapRow]
             });
             return true;
         }
 
         if (interaction.customId === 'map_select') {
-            const selectedMap = interaction.values[0];
+            const [category, selectedMap] = interaction.values[0].split(':');
             
             // Создаем кнопки для выбора результата
             const winButton = new ButtonBuilder()
@@ -170,7 +162,7 @@ const vsCommand = {
             const resultRow = new ActionRowBuilder().addComponents(winButton, loseButton);
 
             await interaction.update({
-                content: `🎯 **Выбрана карта:** ${selectedMap}\n\nТеперь выберите результат игры:`,
+                content: `🎯 **Выбрана карта:** ${selectedMap} (${category})\n\nТеперь выберите результат игры:`,
                 components: [resultRow]
             });
             return true;
@@ -179,12 +171,24 @@ const vsCommand = {
         if (interaction.customId.startsWith('result_')) {
             const [, result, map] = interaction.customId.split('_');
             
-            // Получаем список участников сервера
-            const members = getServerMembers(interaction.guild);
+            const guildId = interaction.guildId;
+            const configs = loadServerConfigs();
+            const serverConfig = configs[guildId];
+
+            if (!serverConfig || !serverConfig.gameResults) {
+                await interaction.update({
+                    content: '❌ Конфигурация не найдена. Обратитесь к администратору.',
+                    components: []
+                });
+                return true;
+            }
+
+            // Получаем список участников сервера с нужными ролями
+            const members = getServerMembers(interaction.guild, serverConfig.gameResults.allowedRoleIds || []);
             
             if (members.length === 0) {
                 await interaction.update({
-                    content: '❌ Не удалось получить список участников сервера.',
+                    content: '❌ Не найдено участников с разрешенными ролями. Обратитесь к администратору для настройки ролей.',
                     components: []
                 });
                 return true;
@@ -293,6 +297,10 @@ const vsSetupCommand = {
             option.setName('канал')
                 .setDescription('Канал для отправки отчетов о результатах игр')
                 .setRequired(true))
+        .addRoleOption(option =>
+            option.setName('роли')
+                .setDescription('Роли участников, которые будут отображаться в списке (можно выбрать несколько)')
+                .setRequired(true))
         .addStringOption(option =>
             option.setName('фото_победы')
                 .setDescription('Ссылка на фото для победы')
@@ -313,6 +321,7 @@ const vsSetupCommand = {
         }
 
         const channel = interaction.options.getChannel('канал');
+        const roles = interaction.options.getRoles('роли');
         const winPhotoUrl = interaction.options.getString('фото_победы');
         const losePhotoUrl = interaction.options.getString('фото_поражения');
 
@@ -333,9 +342,13 @@ const vsSetupCommand = {
                 configs[guildId] = {};
             }
 
+            // Получаем ID ролей
+            const roleIds = Array.from(roles.values()).map(role => role.id);
+
             // Обновляем конфигурацию
             configs[guildId].gameResults = {
                 channelId: channel.id,
+                allowedRoleIds: roleIds,
                 winPhotoUrl: winPhotoUrl,
                 losePhotoUrl: losePhotoUrl
             };
@@ -347,6 +360,7 @@ const vsSetupCommand = {
                     .setTitle('✅ Настройка модуля отчетности завершена')
                     .addFields(
                         { name: '📺 Канал для отчетов', value: channel.toString(), inline: true },
+                        { name: '👥 Разрешенные роли', value: roles.map(r => r.toString()).join(', '), inline: false },
                         { name: '🏆 Фото победы', value: winPhotoUrl, inline: true },
                         { name: '💀 Фото поражения', value: losePhotoUrl, inline: true }
                     )
