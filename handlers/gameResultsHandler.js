@@ -2,21 +2,19 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 const fs = require('fs');
 const path = require('path');
 
-// Список карт для World of Tanks, разбитый на категории
-const MAP_CATEGORIES = {
-    'Классические карты': [
-        'Химмельсдорф', 'Эрленберг', 'Маллиновка', 'Прованс', 'Харьков',
-        'Степи', 'Энск', 'Ласвилль', 'Руинберг', 'Зигфрид Линия'
-    ],
-    'Современные карты': [
-        'Вестфилд', 'Дорога', 'Курильские острова', 'Сердце России', 'Париж',
-        'Берлин', 'Лондон', 'Нормандия', 'Африканский корпус', 'Италия'
-    ],
-    'Европейские карты': [
-        'Польша', 'Чехия', 'Словакия', 'Венгрия', 'Румыния',
-        'Болгария', 'Греция', 'Турция', 'Иран', 'Ирак', 'Сирия'
-    ]
-};
+// Список карт для World of Tanks (31 карта)
+const MAPS = [
+    'Химмельсдорф', 'Эрленберг', 'Маллиновка', 'Прованс', 'Харьков',
+    'Степи', 'Энск', 'Ласвилль', 'Руинберг', 'Зигфрид Линия',
+    'Вестфилд', 'Дорога', 'Курильские острова', 'Сердце России', 'Париж',
+    'Берлин', 'Лондон', 'Нормандия', 'Африканский корпус', 'Италия',
+    'Польша', 'Чехия', 'Словакия', 'Венгрия', 'Румыния',
+    'Болгария', 'Греция', 'Турция', 'Иран', 'Ирак', 'Сирия'
+];
+
+// Разбиваем карты на два меню (Discord.js лимит: 25 опций)
+const MAPS_PART1 = MAPS.slice(0, 16); // Первые 16 карт
+const MAPS_PART2 = MAPS.slice(16);     // Оставшиеся 15 карт
 
 // Загрузка конфигурации серверов
 function loadServerConfigs() {
@@ -90,40 +88,36 @@ const vsCommand = {
             return;
         }
 
-        // Создаем селект меню для выбора категории карт
-        const categorySelect = new StringSelectMenuBuilder()
-            .setCustomId('category_select')
-            .setPlaceholder('Выберите категорию карт')
-            .addOptions(
-                Object.keys(MAP_CATEGORIES).map((category, index) => ({
-                    label: category,
-                    value: category,
-                    description: `${MAP_CATEGORIES[category].length} карт`
-                }))
-            );
+        // Создаем кнопки для выбора части карт
+        const part1Button = new ButtonBuilder()
+            .setCustomId('maps_part1')
+            .setLabel('Карты 1-16')
+            .setStyle(ButtonStyle.Primary);
 
-        const categoryRow = new ActionRowBuilder().addComponents(categorySelect);
+        const part2Button = new ButtonBuilder()
+            .setCustomId('maps_part2')
+            .setLabel('Карты 17-31')
+            .setStyle(ButtonStyle.Primary);
+
+        const mapsRow = new ActionRowBuilder().addComponents(part1Button, part2Button);
 
         await interaction.reply({
-            content: '🎮 **Отчет о результате игры**\n\nВыберите категорию карт для создания отчета:',
-            components: [categoryRow],
+            content: '🎮 **Отчет о результате игры**\n\nВыберите группу карт:',
+            components: [mapsRow],
             flags: 64
         });
     },
 
     async handleComponent(interaction, client) {
-        if (interaction.customId === 'category_select') {
-            const selectedCategory = interaction.values[0];
-            const maps = MAP_CATEGORIES[selectedCategory];
-            
-            // Создаем селект меню для выбора карты из выбранной категории
+        if (interaction.customId === 'maps_part1') {
+            // Создаем селект меню для первых 16 карт
             const mapSelect = new StringSelectMenuBuilder()
                 .setCustomId('map_select')
-                .setPlaceholder(`Выберите карту из категории "${selectedCategory}"`)
+                .setPlaceholder('Выберите карту (1-16)')
                 .addOptions(
-                    maps.map((map, index) => ({
+                    MAPS_PART1.map((map, index) => ({
                         label: map,
-                        value: `${selectedCategory}:${map}`,
+                        value: map,
                         description: `Карта ${index + 1}`
                     }))
                 );
@@ -131,14 +125,36 @@ const vsCommand = {
             const mapRow = new ActionRowBuilder().addComponents(mapSelect);
 
             await interaction.update({
-                content: `🗺️ **Выбрана категория:** ${selectedCategory}\n\nТеперь выберите конкретную карту:`,
+                content: '🗺️ **Группа карт 1-16**\n\nВыберите конкретную карту:',
+                components: [mapRow]
+            });
+            return true;
+        }
+
+        if (interaction.customId === 'maps_part2') {
+            // Создаем селект меню для оставшихся 15 карт
+            const mapSelect = new StringSelectMenuBuilder()
+                .setCustomId('map_select')
+                .setPlaceholder('Выберите карту (17-31)')
+                .addOptions(
+                    MAPS_PART2.map((map, index) => ({
+                        label: map,
+                        value: map,
+                        description: `Карта ${index + 17}`
+                    }))
+                );
+
+            const mapRow = new ActionRowBuilder().addComponents(mapSelect);
+
+            await interaction.update({
+                content: '🗺️ **Группа карт 17-31**\n\nВыберите конкретную карту:',
                 components: [mapRow]
             });
             return true;
         }
 
         if (interaction.customId === 'map_select') {
-            const [category, selectedMap] = interaction.values[0].split(':');
+            const selectedMap = interaction.values[0];
             
             // Создаем кнопки для выбора результата
             const winButton = new ButtonBuilder()
@@ -154,7 +170,7 @@ const vsCommand = {
             const resultRow = new ActionRowBuilder().addComponents(winButton, loseButton);
 
             await interaction.update({
-                content: `🎯 **Выбрана карта:** ${selectedMap}\n**Категория:** ${category}\n\nТеперь выберите результат игры:`,
+                content: `🎯 **Выбрана карта:** ${selectedMap}\n\nТеперь выберите результат игры:`,
                 components: [resultRow]
             });
             return true;
