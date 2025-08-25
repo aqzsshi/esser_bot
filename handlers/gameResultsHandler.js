@@ -2,15 +2,21 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 const fs = require('fs');
 const path = require('path');
 
-// Список карт для World of Tanks
-const MAPS = [
-    'Химмельсдорф', 'Эрленберг', 'Маллиновка', 'Прованс', 'Харьков',
-    'Степи', 'Энск', 'Ласвилль', 'Руинберг', 'Зигфрид Линия',
-    'Вестфилд', 'Дорога', 'Курильские острова', 'Сердце России', 'Париж',
-    'Берлин', 'Лондон', 'Нормандия', 'Африканский корпус', 'Италия',
-    'Польша', 'Чехия', 'Словакия', 'Венгрия', 'Румыния',
-    'Болгария', 'Греция', 'Турция', 'Иран', 'Ирак', 'Сирия'
-];
+// Список карт для World of Tanks, разбитый на категории
+const MAP_CATEGORIES = {
+    'Классические карты': [
+        'Химмельсдорф', 'Эрленберг', 'Маллиновка', 'Прованс', 'Харьков',
+        'Степи', 'Энск', 'Ласвилль', 'Руинберг', 'Зигфрид Линия'
+    ],
+    'Современные карты': [
+        'Вестфилд', 'Дорога', 'Курильские острова', 'Сердце России', 'Париж',
+        'Берлин', 'Лондон', 'Нормандия', 'Африканский корпус', 'Италия'
+    ],
+    'Европейские карты': [
+        'Польша', 'Чехия', 'Словакия', 'Венгрия', 'Румыния',
+        'Болгария', 'Греция', 'Турция', 'Иран', 'Ирак', 'Сирия'
+    ]
+};
 
 // Загрузка конфигурации серверов
 function loadServerConfigs() {
@@ -56,37 +62,62 @@ const vsCommand = {
         const serverConfig = configs[guildId];
 
         if (!serverConfig || !serverConfig.gameResults) {
-            await interaction.reply({
-                content: '❌ Модуль отчетности результатов игр не настроен для этого сервера. Администратор должен использовать команду `/вс_настройка` для настройки.',
-                ephemeral: true
-            });
+                    await interaction.reply({
+            content: '❌ Модуль отчетности результатов игр не настроен для этого сервера. Администратор должен использовать команду `/вс_настройка` для настройки.',
+            flags: 64
+        });
             return;
         }
 
-        // Создаем селект меню для выбора карты
-        const mapSelect = new StringSelectMenuBuilder()
-            .setCustomId('map_select')
-            .setPlaceholder('Выберите карту')
+        // Создаем селект меню для выбора категории карт
+        const categorySelect = new StringSelectMenuBuilder()
+            .setCustomId('category_select')
+            .setPlaceholder('Выберите категорию карт')
             .addOptions(
-                MAPS.map((map, index) => ({
-                    label: map,
-                    value: map,
-                    description: `Карта ${index + 1}`
+                Object.keys(MAP_CATEGORIES).map((category, index) => ({
+                    label: category,
+                    value: category,
+                    description: `${MAP_CATEGORIES[category].length} карт`
                 }))
             );
 
-        const mapRow = new ActionRowBuilder().addComponents(mapSelect);
+        const categoryRow = new ActionRowBuilder().addComponents(categorySelect);
 
         await interaction.reply({
-            content: '🎮 Выберите карту для отчета о результате игры:',
-            components: [mapRow],
-            ephemeral: true
+            content: '🎮 Выберите категорию карт для отчета о результате игры:',
+            components: [categoryRow],
+            flags: 64
         });
     },
 
     async handleComponent(interaction, client) {
+        if (interaction.customId === 'category_select') {
+            const selectedCategory = interaction.values[0];
+            const maps = MAP_CATEGORIES[selectedCategory];
+            
+            // Создаем селект меню для выбора карты из выбранной категории
+            const mapSelect = new StringSelectMenuBuilder()
+                .setCustomId('map_select')
+                .setPlaceholder(`Выберите карту из категории "${selectedCategory}"`)
+                .addOptions(
+                    maps.map((map, index) => ({
+                        label: map,
+                        value: `${selectedCategory}:${map}`,
+                        description: `Карта ${index + 1}`
+                    }))
+                );
+
+            const mapRow = new ActionRowBuilder().addComponents(mapSelect);
+
+            await interaction.update({
+                content: `🗺️ Выбрана категория: **${selectedCategory}**\nТеперь выберите карту:`,
+                components: [mapRow]
+            });
+            return true;
+        }
+
         if (interaction.customId === 'map_select') {
-            const selectedMap = interaction.values[0];
+            const [category, selectedMap] = interaction.values[0].split(':');
             
             // Создаем кнопки для выбора результата
             const winButton = new ButtonBuilder()
@@ -102,7 +133,7 @@ const vsCommand = {
             const resultRow = new ActionRowBuilder().addComponents(winButton, loseButton);
 
             await interaction.update({
-                content: `🎯 Выбрана карта: **${selectedMap}**\nТеперь выберите результат игры:`,
+                content: `🎯 Выбрана карта: **${selectedMap}** (${category})\nТеперь выберите результат игры:`,
                 components: [resultRow]
             });
             return true;
@@ -191,7 +222,7 @@ const vsSetupCommand = {
         if (!hasAdminPermissions(interaction.member)) {
             await interaction.reply({
                 content: '❌ У вас недостаточно прав для использования этой команды. Требуются права администратора.',
-                ephemeral: true
+                flags: 64
             });
             return;
         }
@@ -204,7 +235,7 @@ const vsSetupCommand = {
         if (!winPhotoUrl.startsWith('http') || !losePhotoUrl.startsWith('http')) {
             await interaction.reply({
                 content: '❌ Ссылки на фото должны начинаться с http:// или https://',
-                ephemeral: true
+                flags: 64
             });
             return;
         }
@@ -237,11 +268,11 @@ const vsSetupCommand = {
                     .setDescription('Теперь игроки могут использовать команду `/вс` для отправки отчетов о результатах игр.')
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [embed], ephemeral: true });
+                await interaction.reply({ embeds: [embed], flags: 64 });
             } else {
                 await interaction.reply({
                     content: '❌ Произошла ошибка при сохранении настроек. Попробуйте позже.',
-                    ephemeral: true
+                    flags: 64
                 });
             }
 
@@ -249,7 +280,7 @@ const vsSetupCommand = {
             console.error('Ошибка при настройке модуля отчетности:', error);
             await interaction.reply({
                 content: '❌ Произошла ошибка при настройке модуля. Попробуйте позже.',
-                ephemeral: true
+                flags: 64
             });
         }
     }
