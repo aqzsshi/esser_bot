@@ -22,23 +22,90 @@ const MAP_CATEGORIES = {
 function loadServerConfigs() {
     try {
         const configPath = path.join(__dirname, 'serverConfigs.json');
-        if (fs.existsSync(configPath)) {
-            return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        
+        // Если файл не существует, создаем новый с базовой структурой
+        if (!fs.existsSync(configPath)) {
+            console.log('Файл serverConfigs.json не найден, создаем новый...');
+            const defaultConfig = {};
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+            return defaultConfig;
         }
+        
+        // Читаем существующий файл
+        const data = fs.readFileSync(configPath, 'utf8');
+        
+        // Проверяем, что файл содержит валидный JSON
+        let configs;
+        try {
+            configs = JSON.parse(data);
+        } catch (parseError) {
+            console.error('Файл serverConfigs.json поврежден, создаем новый...');
+            const defaultConfig = {};
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+            return defaultConfig;
+        }
+        
+        // Проверяем, что это объект
+        if (typeof configs !== 'object' || configs === null) {
+            console.error('Файл serverConfigs.json содержит неверную структуру, создаем новый...');
+            const defaultConfig = {};
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+            return defaultConfig;
+        }
+        
+        return configs;
     } catch (error) {
-        console.error('Ошибка загрузки конфигурации серверов:', error);
+        console.error('Критическая ошибка при загрузке конфигураций серверов:', error);
+        console.log('Создаем новый файл конфигурации...');
+        
+        try {
+            const configPath = path.join(__dirname, 'serverConfigs.json');
+            const defaultConfig = {};
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+            return defaultConfig;
+        } catch (createError) {
+            console.error('Не удалось создать файл конфигурации:', createError);
+            return {};
+        }
     }
-    return {};
 }
 
 // Сохранение конфигурации серверов
 function saveServerConfigs(configs) {
     try {
         const configPath = path.join(__dirname, 'serverConfigs.json');
-        fs.writeFileSync(configPath, JSON.stringify(configs, null, 2), 'utf8');
+        
+        // Создаем резервную копию перед сохранением
+        if (fs.existsSync(configPath)) {
+            const backupPath = configPath + '.backup';
+            fs.copyFileSync(configPath, backupPath);
+        }
+        
+        // Сохраняем новую конфигурацию
+        fs.writeFileSync(configPath, JSON.stringify(configs, null, 2));
+        
+        // Удаляем резервную копию после успешного сохранения
+        const backupPath = configPath + '.backup';
+        if (fs.existsSync(backupPath)) {
+            fs.unlinkSync(backupPath);
+        }
+        
         return true;
     } catch (error) {
-        console.error('Ошибка сохранения конфигурации серверов:', error);
+        console.error('Ошибка при сохранении конфигураций серверов:', error);
+        
+        // Пытаемся восстановить из резервной копии
+        try {
+            const configPath = path.join(__dirname, 'serverConfigs.json');
+            const backupPath = configPath + '.backup';
+            if (fs.existsSync(backupPath)) {
+                fs.copyFileSync(backupPath, configPath);
+                console.log('Восстановлена резервная копия конфигурации');
+            }
+        } catch (restoreError) {
+            console.error('Не удалось восстановить резервную копию:', restoreError);
+        }
+        
         return false;
     }
 }
