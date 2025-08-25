@@ -25,10 +25,31 @@ const WAR_MAPS = [
   'ферма мексы'
 ];
 
-// Карта -> URL изображения (поставьте реальные ссылки при необходимости)
-// По умолчанию используется один и тот же плейсхолдер, если ссылка не задана
+// Карта -> URL изображения (укажите реальные ссылки для каждой карты)
 const DEFAULT_IMAGE = 'https://i.ibb.co/8nmDpF27/image.png';
-const MAP_IMAGES = Object.fromEntries(WAR_MAPS.map(name => [name, DEFAULT_IMAGE]));
+const MAP_IMAGES = {
+  'квадрики': DEFAULT_IMAGE,
+  'лнс': DEFAULT_IMAGE,
+  'самолеты': DEFAULT_IMAGE,
+  'свалка': DEFAULT_IMAGE,
+  'бладсы': DEFAULT_IMAGE,
+  'большие конты': DEFAULT_IMAGE,
+  'грейпсид': DEFAULT_IMAGE,
+  'динозаврик': DEFAULT_IMAGE,
+  'зерно': DEFAULT_IMAGE,
+  'кай перика': DEFAULT_IMAGE,
+  'малые конты': DEFAULT_IMAGE,
+  'мексы': DEFAULT_IMAGE,
+  'мирор': DEFAULT_IMAGE,
+  'нефть': DEFAULT_IMAGE,
+  'сдача мяса': DEFAULT_IMAGE,
+  'старая поставка': DEFAULT_IMAGE,
+  'стеб': DEFAULT_IMAGE,
+  'стройка 1': DEFAULT_IMAGE,
+  'стройка 2': DEFAULT_IMAGE,
+  'тшка': DEFAULT_IMAGE,
+  'ферма мексы': DEFAULT_IMAGE
+};
 
 const warMapsCommand = {
   data: new SlashCommandBuilder()
