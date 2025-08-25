@@ -297,9 +297,9 @@ const vsSetupCommand = {
             option.setName('канал')
                 .setDescription('Канал для отправки отчетов о результатах игр')
                 .setRequired(true))
-        .addRoleOption(option =>
+        .addStringOption(option =>
             option.setName('роли')
-                .setDescription('Роли участников, которые будут отображаться в списке (можно выбрать несколько)')
+                .setDescription('ID ролей через запятую (например: 123456789,987654321)')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('фото_победы')
@@ -321,7 +321,7 @@ const vsSetupCommand = {
         }
 
         const channel = interaction.options.getChannel('канал');
-        const roles = interaction.options.getRoles('роли');
+        const rolesText = interaction.options.getString('роли');
         const winPhotoUrl = interaction.options.getString('фото_победы');
         const losePhotoUrl = interaction.options.getString('фото_поражения');
 
@@ -334,6 +334,49 @@ const vsSetupCommand = {
             return;
         }
 
+        // Разбираем ID ролей
+        const roleIds = rolesText.split(',').map(id => id.trim()).filter(id => /^\d+$/.test(id));
+        
+        if (roleIds.length === 0) {
+            await interaction.reply({
+                content: '❌ Не удалось определить ID ролей. Укажите ID ролей через запятую (например: 123456789,987654321)',
+                flags: 64
+            });
+            return;
+        }
+
+        // Проверяем, что роли существуют на сервере
+        const validRoles = [];
+        const invalidRoleIds = [];
+        
+        for (const roleId of roleIds) {
+            try {
+                const role = await interaction.guild.roles.fetch(roleId);
+                if (role) {
+                    validRoles.push(role);
+                } else {
+                    invalidRoleIds.push(roleId);
+                }
+            } catch (error) {
+                invalidRoleIds.push(roleId);
+            }
+        }
+
+        if (validRoles.length === 0) {
+            await interaction.reply({
+                content: '❌ Не найдено ни одной валидной роли. Проверьте ID ролей.',
+                flags: 64
+            });
+            return;
+        }
+
+        if (invalidRoleIds.length > 0) {
+            await interaction.reply({
+                content: `⚠️ Некоторые роли не найдены: ${invalidRoleIds.join(', ')}\n\nПродолжаем с найденными ролями.`,
+                flags: 64
+            });
+        }
+
         try {
             const guildId = interaction.guildId;
             const configs = loadServerConfigs();
@@ -342,13 +385,10 @@ const vsSetupCommand = {
                 configs[guildId] = {};
             }
 
-            // Получаем ID ролей
-            const roleIds = Array.from(roles.values()).map(role => role.id);
-
             // Обновляем конфигурацию
             configs[guildId].gameResults = {
                 channelId: channel.id,
-                allowedRoleIds: roleIds,
+                allowedRoleIds: validRoles.map(role => role.id),
                 winPhotoUrl: winPhotoUrl,
                 losePhotoUrl: losePhotoUrl
             };
@@ -360,7 +400,7 @@ const vsSetupCommand = {
                     .setTitle('✅ Настройка модуля отчетности завершена')
                     .addFields(
                         { name: '📺 Канал для отчетов', value: channel.toString(), inline: true },
-                        { name: '👥 Разрешенные роли', value: roles.map(r => r.toString()).join(', '), inline: false },
+                        { name: '👥 Разрешенные роли', value: validRoles.map(r => r.toString()).join(', '), inline: false },
                         { name: '🏆 Фото победы', value: winPhotoUrl, inline: true },
                         { name: '💀 Фото поражения', value: losePhotoUrl, inline: true }
                     )
