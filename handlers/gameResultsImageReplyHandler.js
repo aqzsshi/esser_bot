@@ -16,8 +16,10 @@ module.exports = (client) => {
 
 			// Проверяем наличие изображения у присланного сообщения
 			const attachment = message.attachments.find(att => {
-				const url = att.url?.toLowerCase() || '';
-				return url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.webp');
+				const contentType = (att.contentType || '').toLowerCase();
+				if (contentType.startsWith('image/')) return true;
+				const url = (att.url || '').toLowerCase();
+				return url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.webp') || url.endsWith('.gif') || url.endsWith('.bmp');
 			});
 			if (!attachment) return;
 
