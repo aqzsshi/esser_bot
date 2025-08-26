@@ -516,7 +516,11 @@ const vsSetupCommand = {
                     .setDescription('Теперь игроки могут использовать команду `/вс` для отправки отчетов о результатах игр.')
                     .setTimestamp();
 
-                await interaction.followUp ? await interaction.followUp({ embeds: [embed], flags: 64 }) : await interaction.reply({ embeds: [embed], flags: 64 });
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ embeds: [embed], flags: 64 });
+                } else {
+                    await interaction.reply({ embeds: [embed], flags: 64 });
+                }
             } else {
                 await interaction.reply({
                     content: '❌ Произошла ошибка при сохранении настроек. Попробуйте позже.',
