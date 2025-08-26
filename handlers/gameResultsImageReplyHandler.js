@@ -52,6 +52,10 @@ module.exports = (client) => {
 			// Берем первый embed и обновляем картинку
 			const embed = replied.embeds[0].toJSON();
 			embed.image = { url: finalUrl };
+			if (hostedUrl) {
+				const prev = embed.description || '';
+				embed.description = prev ? `${prev}\n🔗 Прямая ссылка: ${hostedUrl}` : `🔗 Прямая ссылка: ${hostedUrl}`;
+			}
 
 			await replied.edit({ embeds: [embed] });
 			await message.react('✅');
