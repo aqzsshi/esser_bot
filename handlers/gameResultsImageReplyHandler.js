@@ -23,9 +23,35 @@ module.exports = (client) => {
 			});
 			if (!attachment) return;
 
+			// Скачиваем изображение и загружаем на catbox.moe
+			let hostedUrl = null;
+			try {
+				const resp = await fetch(attachment.url);
+				if (!resp.ok) throw new Error(`download failed: ${resp.status}`);
+				const arrayBuffer = await resp.arrayBuffer();
+				const fileName = attachment.name || 'image.png';
+
+				const form = new FormData();
+				form.append('reqtype', 'fileupload');
+				form.append('fileToUpload', new Blob([arrayBuffer]), fileName);
+
+				const upload = await fetch('https://catbox.moe/user/api.php', {
+					method: 'POST',
+					body: form
+				});
+				const text = await upload.text();
+				if (upload.ok && /^https?:\/\//i.test(text)) {
+					hostedUrl = text.trim();
+				}
+			} catch (e) {
+				console.error('Ошибка загрузки на catbox.moe:', e);
+			}
+
+			const finalUrl = hostedUrl || attachment.url;
+
 			// Берем первый embed и обновляем картинку
 			const embed = replied.embeds[0].toJSON();
-			embed.image = { url: attachment.url };
+			embed.image = { url: finalUrl };
 
 			await replied.edit({ embeds: [embed] });
 			await message.react('✅');
