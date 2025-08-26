@@ -117,6 +117,12 @@ function hasAdminPermissions(member) {
            member.roles.cache.some(role => role.permissions.has(PermissionFlagsBits.Administrator));
 }
 
+function hasSubmitPermissions(member, submitterRoleIds) {
+    if (hasAdminPermissions(member)) return true;
+    if (!Array.isArray(submitterRoleIds) || submitterRoleIds.length === 0) return false;
+    return member.roles.cache.some(role => submitterRoleIds.includes(role.id));
+}
+
 // Функция для получения списка участников сервера с нужными ролями
 function getServerMembers(guild, allowedRoleIds) {
     const members = [];
@@ -160,6 +166,16 @@ const vsCommand = {
         if (!serverConfig || !serverConfig.gameResults) {
             await interaction.reply({
                 content: '❌ Модуль отчетности результатов игр не настроен для этого сервера. Администратор должен использовать команду `/вс_настройка` для настройки.',
+                flags: 64
+            });
+            return;
+        }
+
+        // Проверяем права пользователя на отправку отчетов
+        const submitterRoleIds = serverConfig.gameResults.submitterRoleIds || [];
+        if (!hasSubmitPermissions(interaction.member, submitterRoleIds)) {
+            await interaction.reply({
+                content: '❌ У вас нет прав для заполнения отчетов. Обратитесь к администратору.',
                 flags: 64
             });
             return;
@@ -215,28 +231,52 @@ const vsCommand = {
         if (interaction.customId === 'map_select') {
             const [category, selectedMap] = interaction.values[0].split(':');
             
-            // Создаем кнопки для выбора результата
+            // Кнопки выбора типа боя: Дефф / Атака
+            const defBtn = new ButtonBuilder()
+                .setCustomId(`cat_def_${selectedMap}`)
+                .setLabel('🛡️ Дефф')
+                .setStyle(ButtonStyle.Secondary);
+
+            const atkBtn = new ButtonBuilder()
+                .setCustomId(`cat_atk_${selectedMap}`)
+                .setLabel('⚔️ Атака')
+                .setStyle(ButtonStyle.Secondary);
+
+            const catRow = new ActionRowBuilder().addComponents(defBtn, atkBtn);
+
+            await interaction.update({
+                content: `🎯 **Выбрана карта:** ${selectedMap} (${category})\n\nВыберите тип боя:`,
+                components: [catRow]
+            });
+            return true;
+        }
+
+        // Выбор категории боя
+        if (interaction.customId.startsWith('cat_')) {
+            const [, cat, map] = interaction.customId.split('_'); // cat: def|atk
+
             const winButton = new ButtonBuilder()
-                .setCustomId(`result_win_${selectedMap}`)
+                .setCustomId(`result_win_${cat}_${map}`)
                 .setLabel('🏆 Победа')
                 .setStyle(ButtonStyle.Success);
 
             const loseButton = new ButtonBuilder()
-                .setCustomId(`result_lose_${selectedMap}`)
+                .setCustomId(`result_lose_${cat}_${map}`)
                 .setLabel('💀 Поражение')
                 .setStyle(ButtonStyle.Danger);
 
             const resultRow = new ActionRowBuilder().addComponents(winButton, loseButton);
 
             await interaction.update({
-                content: `🎯 **Выбрана карта:** ${selectedMap} (${category})\n\nТеперь выберите результат игры:`,
+                content: `🛡️⚔️ **Тип боя:** ${cat === 'def' ? 'Дефф' : 'Атака'}\nТеперь выберите результат игры:`,
                 components: [resultRow]
             });
             return true;
         }
 
+        // Выбор результата
         if (interaction.customId.startsWith('result_')) {
-            const [, result, map] = interaction.customId.split('_');
+            const [, result, cat, map] = interaction.customId.split('_');
             
             const guildId = interaction.guildId;
             const configs = loadServerConfigs();
@@ -263,23 +303,23 @@ const vsCommand = {
 
             // Создаем селект меню для выбора игроков
             const playersSelect = new StringSelectMenuBuilder()
-                .setCustomId(`players_select_${result}_${map}`)
+                .setCustomId(`players_select_${cat}_${result}_${map}`)
                 .setPlaceholder('Выберите игроков (можно выбрать несколько)')
                 .setMinValues(1)
-                .setMaxValues(Math.min(members.length, 10)) // Максимум 10 игроков
+                .setMaxValues(Math.min(members.length, 10))
                 .addOptions(members);
 
             const playersRow = new ActionRowBuilder().addComponents(playersSelect);
 
             await interaction.update({
-                content: `🎮 **Выбран результат:** ${result === 'win' ? '🏆 Победа' : '💀 Поражение'}\n**Карта:** ${map}\n\nТеперь выберите игроков, участвовавших в игре:`,
+                content: `🎮 **Выбран результат:** ${result === 'win' ? '🏆 Победа' : '💀 Поражение'}\n**Тип боя:** ${cat === 'def' ? 'Дефф' : 'Атака'}\n\nТеперь выберите игроков, участвовавших в игре:`,
                 components: [playersRow]
             });
             return true;
         }
 
         if (interaction.customId.startsWith('players_select_')) {
-            const [, , result, map] = interaction.customId.split('_');
+            const [, , cat, result, map] = interaction.customId.split('_');
             const selectedPlayerIds = interaction.values;
             
             if (selectedPlayerIds.length === 0) {
@@ -313,19 +353,16 @@ const vsCommand = {
                     return true;
                 }
 
-                // Получаем информацию об игроках
-                const players = selectedPlayerIds.map(id => {
-                    const member = interaction.guild.members.cache.get(id);
-                    return member ? member.displayName || member.user.username : `ID: ${id}`;
-                });
+                // Упоминания игроков
+                const mentionList = selectedPlayerIds.map(id => `• <@${id}>`).join('\n');
 
                 // Создаем embed сообщение с большим фото снизу
                 const embed = new EmbedBuilder()
                     .setColor(result === 'win' ? '#00ff00' : '#ff0000')
                     .setTitle(`🎮 Результат игры на карте ${map}`)
-                    .setDescription(`**Результат:** ${result === 'win' ? '🏆 Победа' : '💀 Поражение'}`)
+                    .setDescription(`**Тип боя:** ${cat === 'def' ? 'Дефф' : 'Атака'}\n**Результат:** ${result === 'win' ? '🏆 Победа' : '💀 Поражение'}`)
                     .addFields(
-                        { name: '👥 Участники', value: players.map(p => `• ${p}`).join('\n'), inline: false },
+                        { name: '👥 Участники', value: mentionList, inline: false },
                         { name: '🗺️ Карта', value: map, inline: true },
                         { name: '📅 Дата', value: new Date().toLocaleString('ru-RU'), inline: true },
                         { name: '📝 Отчет составил', value: interaction.user.toString(), inline: true }
@@ -334,10 +371,10 @@ const vsCommand = {
                     .setFooter({ text: 'Отчет о результате игры' })
                     .setTimestamp();
 
-                await channel.send({ embeds: [embed] });
+                const sent = await channel.send({ embeds: [embed] });
 
                 await interaction.update({
-                    content: `✅ **Отчет успешно отправлен!**\n\n**Карта:** ${map}\n**Результат:** ${result === 'win' ? 'Победа' : 'Поражение'}\n**Игроки:** ${players.length}\n**Канал:** ${channel.toString()}`,
+                    content: `✅ **Отчет успешно отправлен!**\n\n**Карта:** ${map}\n**Тип боя:** ${cat === 'def' ? 'Дефф' : 'Атака'}\n**Результат:** ${result === 'win' ? 'Победа' : 'Поражение'}\n**Игроки:** ${selectedPlayerIds.length}\n**Канал:** ${channel.toString()}`,
                     components: []
                 });
 
@@ -365,8 +402,12 @@ const vsSetupCommand = {
                 .setDescription('Канал для отправки отчетов о результатах игр')
                 .setRequired(true))
         .addStringOption(option =>
-            option.setName('роли')
-                .setDescription('ID ролей через запятую (например: 123456789,987654321)')
+            option.setName('роли_заполнения')
+                .setDescription('ID ролей (через запятую), кто может заполнять отчеты')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('роли_списка')
+                .setDescription('ID ролей (через запятую), кто будет отображаться в списке игроков')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('фото_победы')
@@ -388,7 +429,8 @@ const vsSetupCommand = {
         }
 
         const channel = interaction.options.getChannel('канал');
-        const rolesText = interaction.options.getString('роли');
+        const submitRolesText = interaction.options.getString('роли_заполнения');
+        const listRolesText = interaction.options.getString('роли_списка');
         const winPhotoUrl = interaction.options.getString('фото_победы');
         const losePhotoUrl = interaction.options.getString('фото_поражения');
 
@@ -402,44 +444,42 @@ const vsSetupCommand = {
         }
 
         // Разбираем ID ролей
-        const roleIds = rolesText.split(',').map(id => id.trim()).filter(id => /^\d+$/.test(id));
+        const parseIds = (text) => (text || '')
+            .split(',')
+            .map(id => id.trim())
+            .filter(id => /^\d+$/.test(id));
+
+        const submitterRoleIds = parseIds(submitRolesText);
+        const allowedRoleIds = parseIds(listRolesText);
         
-        if (roleIds.length === 0) {
+        if (submitterRoleIds.length === 0) {
             await interaction.reply({
-                content: '❌ Не удалось определить ID ролей. Укажите ID ролей через запятую (например: 123456789,987654321)',
+                content: '❌ Укажите хотя бы одну роль, которая может заполнять отчеты (роли_заполнения).',
+                flags: 64
+            });
+            return;
+        }
+        if (allowedRoleIds.length === 0) {
+            await interaction.reply({
+                content: '❌ Укажите хотя бы одну роль для списка игроков (роли_списка).',
                 flags: 64
             });
             return;
         }
 
-        // Проверяем, что роли существуют на сервере
-        const validRoles = [];
-        const invalidRoleIds = [];
-        
-        for (const roleId of roleIds) {
-            try {
-                const role = await interaction.guild.roles.fetch(roleId);
-                if (role) {
-                    validRoles.push(role);
-                } else {
-                    invalidRoleIds.push(roleId);
-                }
-            } catch (error) {
-                invalidRoleIds.push(roleId);
-            }
+        // Проверяем, что роли существуют на сервере (только информативно)
+        const invalidSubmit = [];
+        for (const id of submitterRoleIds) {
+            try { const r = await interaction.guild.roles.fetch(id); if (!r) invalidSubmit.push(id); } catch { invalidSubmit.push(id); }
+        }
+        const invalidList = [];
+        for (const id of allowedRoleIds) {
+            try { const r = await interaction.guild.roles.fetch(id); if (!r) invalidList.push(id); } catch { invalidList.push(id); }
         }
 
-        if (validRoles.length === 0) {
+        if (invalidSubmit.length > 0 || invalidList.length > 0) {
             await interaction.reply({
-                content: '❌ Не найдено ни одной валидной роли. Проверьте ID ролей.',
-                flags: 64
-            });
-            return;
-        }
-
-        if (invalidRoleIds.length > 0) {
-            await interaction.reply({
-                content: `⚠️ Некоторые роли не найдены: ${invalidRoleIds.join(', ')}\n\nПродолжаем с найденными ролями.`,
+                content: `⚠️ Некоторые роли не найдены.\nОтправители: ${invalidSubmit.length ? invalidSubmit.join(', ') : 'все найдены'}\nСписок: ${invalidList.length ? invalidList.join(', ') : 'все найдены'}\nНастройки будут сохранены без отсутствующих ролей.`,
                 flags: 64
             });
         }
@@ -455,7 +495,8 @@ const vsSetupCommand = {
             // Обновляем конфигурацию
             configs[guildId].gameResults = {
                 channelId: channel.id,
-                allowedRoleIds: validRoles.map(role => role.id),
+                submitterRoleIds: submitterRoleIds.filter(id => !invalidSubmit.includes(id)),
+                allowedRoleIds: allowedRoleIds.filter(id => !invalidList.includes(id)),
                 winPhotoUrl: winPhotoUrl,
                 losePhotoUrl: losePhotoUrl
             };
@@ -467,14 +508,15 @@ const vsSetupCommand = {
                     .setTitle('✅ Настройка модуля отчетности завершена')
                     .addFields(
                         { name: '📺 Канал для отчетов', value: channel.toString(), inline: true },
-                        { name: '👥 Разрешенные роли', value: validRoles.map(r => r.toString()).join(', '), inline: false },
+                        { name: '✍️ Роли, кто может заполнять', value: submitterRoleIds.filter(id => !invalidSubmit.includes(id)).map(id => `<@&${id}>`).join(', '), inline: false },
+                        { name: '👥 Роли списка игроков', value: allowedRoleIds.filter(id => !invalidList.includes(id)).map(id => `<@&${id}>`).join(', '), inline: false },
                         { name: '🏆 Фото победы', value: winPhotoUrl, inline: true },
                         { name: '💀 Фото поражения', value: losePhotoUrl, inline: true }
                     )
                     .setDescription('Теперь игроки могут использовать команду `/вс` для отправки отчетов о результатах игр.')
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [embed], flags: 64 });
+                await interaction.followUp ? await interaction.followUp({ embeds: [embed], flags: 64 }) : await interaction.reply({ embeds: [embed], flags: 64 });
             } else {
                 await interaction.reply({
                     content: '❌ Произошла ошибка при сохранении настроек. Попробуйте позже.',
