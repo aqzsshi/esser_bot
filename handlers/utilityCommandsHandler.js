@@ -71,6 +71,7 @@ function formatUptime(seconds) {
 
 // ===== Spam Command =====
 const activeSpams = new Map();
+const { hasAdminOrOwner } = require('./permissionUtils');
 
 const spamData = {
   name: 'спам',
@@ -82,12 +83,12 @@ const spamData = {
 };
 
 function hasAdminRole(member) {
-  return member.permissions.has('Administrator');
+  return hasAdminOrOwner(member);
 }
 
 async function executeSpam(interaction, client) {
   if (!hasAdminRole(interaction.member)) {
-    return interaction.reply({ content: '❌ У вас нет прав администратора сервера для выполнения этой команды.', ephemeral: true });
+    return interaction.reply({ content: '❌ У вас нет прав для выполнения этой команды.', flags: 64 });
   }
 
   const timeArg = interaction.options.getString('время');

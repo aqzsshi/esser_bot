@@ -445,8 +445,9 @@ function getCategoryName(category) {
 }
 
 // ==== Админ-команды для навыков ====
+const { hasAdminOrOwner } = require('./permissionUtils');
 function hasAdminRole(member) {
-  return member.permissions.has('Administrator');
+  return hasAdminOrOwner(member);
 }
 
 const adminChangeNameData = {
@@ -460,7 +461,7 @@ const adminChangeNameData = {
 
 async function executeAdminChangeName(interaction, client) {
   if (!hasAdminRole(interaction.member)) {
-    return interaction.reply({ content: '❌ У вас нет прав администратора сервера для выполнения этой команды.', ephemeral: true });
+    return interaction.reply({ content: '❌ У вас нет прав для выполнения этой команды.', flags: 64 });
   }
   const targetUser = interaction.options.getUser('пользователь');
   const newName = interaction.options.getString('новое_имя');
@@ -502,7 +503,7 @@ const adminChangeLevelData = {
 
 async function executeAdminChangeLevel(interaction, client) {
   if (!hasAdminRole(interaction.member)) {
-    return interaction.reply({ content: '❌ У вас нет прав администратора сервера для выполнения этой команды.', ephemeral: true });
+    return interaction.reply({ content: '❌ У вас нет прав для выполнения этой команды.', flags: 64 });
   }
   const targetUser = interaction.options.getUser('пользователь');
   const skillName = interaction.options.getString('навык').toLowerCase();
