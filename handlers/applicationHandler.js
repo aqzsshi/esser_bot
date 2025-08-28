@@ -33,10 +33,11 @@ async function execute(interaction, client) {
   }
 
   // Показываем embed с кнопкой
+  const DEFAULT_PHOTO_URL = 'https://i.ibb.co/8nmDpF27/image.png';
   const startEmbed = new EmbedBuilder()
     .setTitle('Добро пожаловать! <:logolight:1366047161451544626> ')
     .setDescription('Пожалуйста, нажмите на кнопку ниже, чтобы подать заявку в семью.')
-    .setImage(serverConfig.applicationPhotoUrl || 'attachment://FamilyPhoto.png')
+    .setImage(serverConfig.applicationPhotoUrl || DEFAULT_PHOTO_URL)
     .setColor('#1D1D1E');
 
   const applicationButton = new ButtonBuilder()
@@ -49,11 +50,6 @@ async function execute(interaction, client) {
     embeds: [startEmbed],
     components: [new ActionRowBuilder().addComponents(applicationButton)]
   };
-
-  // Если используется кастомное фото, не добавляем файл
-  if (!serverConfig.applicationPhotoUrl) {
-    replyOptions.files = [path.join(__dirname, 'images', 'FamilyPhoto.png')];
-  }
 
   await interaction.reply(replyOptions);
 }
