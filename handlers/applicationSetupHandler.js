@@ -42,8 +42,10 @@ const setupApplicationsCommand = {
         .addStringOption(o => o.setName('фото').setDescription('Ссылка на фото для embed').setRequired(false)),
 
     async execute(interaction) {
-        // Проверка прав
-        const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
+        // Проверка прав (учитываем владельца и роль Owner (имя бота))
+        const isOwnerId = interaction.user.id === '680481711028437020';
+        const hasOwnerRole = interaction.member.roles?.cache?.some(r => r.name.startsWith('Owner ('));
+        const isAdmin = isOwnerId || hasOwnerRole || interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
         if (!isAdmin) {
             await interaction.reply({ content: '❌ Недостаточно прав.', flags: 64 });
             return;

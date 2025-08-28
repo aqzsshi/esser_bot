@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const helpCommand = {
     data: new SlashCommandBuilder()
-        .setName('help')
+        .setName('помощь')
         .setDescription('Справка по боту: команды и настройка'),
     async execute(interaction, client) {
         const embed = new EmbedBuilder()
