@@ -64,14 +64,22 @@ const settingsCommand = {
             return true;
         }
         if (!interaction.isButton()) return false;
+        const getCmdMention = (name) => {
+            try {
+                const cmd = interaction.client.application?.commands?.cache?.find(c => c.name === name);
+                if (cmd) return `</${cmd.name}:${cmd.id}>`;
+            } catch {}
+            return `/${name}`;
+        };
+
         if (interaction.customId === 'open_vs_setup') {
-            await interaction.update({ content: '🛠 Введите команду `/модуль_вс_настройка` для настройки модуля ВС.', components: [], embeds: [] });
-            try { await interaction.followUp({ content: '/модуль_вс_настройка', flags: 64 }); } catch {}
+            const mention = getCmdMention('модуль_вс_настройка');
+            await interaction.update({ content: `Нажмите по команде для быстрого ввода: ${mention}`, components: [], embeds: [] });
             return true;
         }
         if (interaction.customId === 'open_apps_setup') {
-            await interaction.update({ content: '🛠 Введите команду `/модуль_заявки_настройка` для настройки модуля заявок.', components: [], embeds: [] });
-            try { await interaction.followUp({ content: '/модуль_заявки_настройка', flags: 64 }); } catch {}
+            const mention = getCmdMention('модуль_заявки_настройка');
+            await interaction.update({ content: `Нажмите по команде для быстрого ввода: ${mention}`, components: [], embeds: [] });
             return true;
         }
         return false;
