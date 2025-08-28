@@ -43,9 +43,8 @@ const setupApplicationsCommand = {
 
     async execute(interaction) {
         // Проверка прав (учитываем владельца и роль Owner (имя бота))
-        const isOwnerId = interaction.user.id === '680481711028437020';
-        const hasOwnerRole = interaction.member.roles?.cache?.some(r => r.name.startsWith('Owner ('));
-        const isAdmin = isOwnerId || hasOwnerRole || interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
+        const { hasAdminOrOwner } = require('./permissionUtils');
+        const isAdmin = hasAdminOrOwner(interaction.member);
         if (!isAdmin) {
             await interaction.reply({ content: '❌ Недостаточно прав.', flags: 64 });
             return;
