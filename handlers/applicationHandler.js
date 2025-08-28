@@ -33,7 +33,13 @@ async function execute(interaction, client) {
   }
 
   // Показываем embed с кнопкой
-  const DEFAULT_PHOTO_URL = 'https://i.ibb.co/8nmDpF27/image.png';
+  let DEFAULT_PHOTO_URL = 'https://i.ibb.co/8nmDpF27/image.png';
+  try {
+    const botCfg = require('../config.json');
+    if (botCfg?.images?.applicationDefault && botCfg.images.applicationDefault.startsWith('http')) {
+      DEFAULT_PHOTO_URL = botCfg.images.applicationDefault;
+    }
+  } catch {}
   const startEmbed = new EmbedBuilder()
     .setTitle('Добро пожаловать! <:logolight:1366047161451544626> ')
     .setDescription('Пожалуйста, нажмите на кнопку ниже, чтобы подать заявку в семью.')

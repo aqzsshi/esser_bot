@@ -43,11 +43,13 @@ const settingsCommand = {
         }
         if (!interaction.isButton()) return false;
         if (interaction.customId === 'open_vs_setup') {
-            await interaction.update({ content: '🛠 Введите команду `/модуль_вс_настройка` для настройки модуля ВС.', components: [], embeds: [] });
+            await interaction.update({ content: 'Открываю интерфейс ввода команды `/модуль_вс_настройка`…', components: [], embeds: [] });
+            try { await interaction.followUp({ content: '/модуль_вс_настройка', flags: 64 }); } catch {}
             return true;
         }
         if (interaction.customId === 'open_apps_setup') {
-            await interaction.update({ content: '🛠 Введите команду `/модуль_заявки_настройка` для настройки модуля заявок.', components: [], embeds: [] });
+            await interaction.update({ content: 'Открываю интерфейс ввода команды `/модуль_заявки_настройка`…', components: [], embeds: [] });
+            try { await interaction.followUp({ content: '/модуль_заявки_настройка', flags: 64 }); } catch {}
             return true;
         }
         return false;
