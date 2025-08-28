@@ -34,7 +34,7 @@ function saveServerConfigs(configs) {
 
 const setupApplicationsCommand = {
     data: new SlashCommandBuilder()
-        .setName('заявки_настройка')
+        .setName('модуль_заявки_настройка')
         .setDescription('Настройка модуля заявок (только для администраторов)')
         .addChannelOption(o => o.setName('канал').setDescription('Канал для заявок').setRequired(true))
         .addStringOption(o => o.setName('упоминания_ролей').setDescription('ID ролей для упоминания (через запятую)').setRequired(false))

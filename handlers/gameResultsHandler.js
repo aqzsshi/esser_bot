@@ -391,10 +391,10 @@ const vsCommand = {
     }
 };
 
-// Команда /вс_настройка - настройка модуля
+// Команда /модуль_вс_настройка - настройка модуля
 const vsSetupCommand = {
     data: new SlashCommandBuilder()
-        .setName('вс_настройка')
+        .setName('модуль_вс_настройка')
         .setDescription('Настройка модуля отчетности результатов игр (только для администраторов)')
         .addChannelOption(option =>
             option.setName('канал')
