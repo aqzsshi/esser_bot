@@ -51,12 +51,6 @@ const settingsCommand = {
         );
 
         await interaction.reply({ embeds: [embed], components: [row] });
-
-        // Пробуем отправить приветственное ЛС
-        try {
-            const dmText = '👋 Добро пожаловать!\n\nЧтобы настроить бота на сервере, используйте панели `/настройка` или команды:\n• `/модуль_вс_настройка` — настроить отчёты о боях\n• `/модуль_заявки_настройка` — настроить модуль заявок\n\nЕсли нужна помощь — вызовите `/помощь`.';
-            await interaction.user.send(dmText).catch(() => {});
-        } catch {}
     },
     async handleComponent(interaction, client) {
         if (!hasAdminOrOwner(interaction.member)) {
@@ -74,12 +68,12 @@ const settingsCommand = {
 
         if (interaction.customId === 'open_vs_setup') {
             const mention = getCmdMention('модуль_вс_настройка');
-            await interaction.update({ content: `Нажмите по команде для быстрого ввода: ${mention}`, components: [], embeds: [] });
+            await interaction.reply({ content: `Нажмите по команде для быстрого ввода: ${mention}`, flags: 64 });
             return true;
         }
         if (interaction.customId === 'open_apps_setup') {
             const mention = getCmdMention('модуль_заявки_настройка');
-            await interaction.update({ content: `Нажмите по команде для быстрого ввода: ${mention}`, components: [], embeds: [] });
+            await interaction.reply({ content: `Нажмите по команде для быстрого ввода: ${mention}`, flags: 64 });
             return true;
         }
         return false;
