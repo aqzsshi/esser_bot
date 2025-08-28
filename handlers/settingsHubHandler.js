@@ -63,77 +63,15 @@ const settingsCommand = {
             await interaction.reply({ content: '❌ Недостаточно прав.', flags: 64 });
             return true;
         }
-        if (!interaction.isButton() && !interaction.isModalSubmit()) return false;
-
-        // Открываем модал для ВС
-        if (interaction.isButton() && interaction.customId === 'open_vs_setup') {
-            const cfg = loadConfigs();
-            const g = cfg[interaction.guildId]?.gameResults || {};
-
-            const modal = new ModalBuilder().setCustomId('vs_setup_modal').setTitle('Настройка модуля ВС');
-            const ch = new TextInputBuilder().setCustomId('vs_channel').setLabel('ID канала для отчетов').setStyle(TextInputStyle.Short).setRequired(true).setValue(g.channelId || '');
-            const submitRoles = new TextInputBuilder().setCustomId('vs_submit_roles').setLabel('ID ролей (кто заполняет), запятые').setStyle(TextInputStyle.Paragraph).setRequired(true).setValue((g.submitterRoleIds||[]).join(','));
-            const listRoles = new TextInputBuilder().setCustomId('vs_list_roles').setLabel('ID ролей (список игроков), запятые').setStyle(TextInputStyle.Paragraph).setRequired(true).setValue((g.allowedRoleIds||[]).join(','));
-            const win = new TextInputBuilder().setCustomId('vs_win').setLabel('URL фото победы').setStyle(TextInputStyle.Short).setRequired(true).setValue(g.winPhotoUrl || '');
-            const lose = new TextInputBuilder().setCustomId('vs_lose').setLabel('URL фото поражения').setStyle(TextInputStyle.Short).setRequired(true).setValue(g.losePhotoUrl || '');
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(ch),
-                new ActionRowBuilder().addComponents(submitRoles),
-                new ActionRowBuilder().addComponents(listRoles),
-                new ActionRowBuilder().addComponents(win),
-                new ActionRowBuilder().addComponents(lose)
-            );
-            await interaction.showModal(modal);
+        if (!interaction.isButton()) return false;
+        if (interaction.customId === 'open_vs_setup') {
+            await interaction.update({ content: '🛠 Введите команду `/модуль_вс_настройка` для настройки модуля ВС.', components: [], embeds: [] });
+            try { await interaction.followUp({ content: '/модуль_вс_настройка', flags: 64 }); } catch {}
             return true;
         }
-
-        // Открываем модал для заявок
-        if (interaction.isButton() && interaction.customId === 'open_apps_setup') {
-            const cfg = loadConfigs();
-            const a = cfg[interaction.guildId]?.applications || {};
-            const modal = new ModalBuilder().setCustomId('apps_setup_modal').setTitle('Настройка модуля заявок');
-            const ch = new TextInputBuilder().setCustomId('apps_channel').setLabel('ID канала для заявок').setStyle(TextInputStyle.Short).setRequired(true).setValue(a.familyChannelId || '');
-            const mention = new TextInputBuilder().setCustomId('apps_mention').setLabel('ID ролей упоминаний (запятые)').setStyle(TextInputStyle.Paragraph).setRequired(false).setValue((a.mentionRoleIds||[]).join(','));
-            const call = new TextInputBuilder().setCustomId('apps_call').setLabel('ID ролей для созвона (запятые)').setStyle(TextInputStyle.Paragraph).setRequired(false).setValue((a.callRoleIds||[]).join(','));
-            const photo = new TextInputBuilder().setCustomId('apps_photo').setLabel('URL фото (опционально)').setStyle(TextInputStyle.Short).setRequired(false).setValue(a.applicationPhotoUrl || '');
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(ch),
-                new ActionRowBuilder().addComponents(mention),
-                new ActionRowBuilder().addComponents(call),
-                new ActionRowBuilder().addComponents(photo)
-            );
-            await interaction.showModal(modal);
-            return true;
-        }
-
-        // Сохранение ВС
-        if (interaction.isModalSubmit() && interaction.customId === 'vs_setup_modal') {
-            const channelId = interaction.fields.getTextInputValue('vs_channel').trim();
-            const submitterRoleIds = interaction.fields.getTextInputValue('vs_submit_roles').split(',').map(s=>s.trim()).filter(s=>/^\d+$/.test(s));
-            const allowedRoleIds = interaction.fields.getTextInputValue('vs_list_roles').split(',').map(s=>s.trim()).filter(s=>/^\d+$/.test(s));
-            const winPhotoUrl = interaction.fields.getTextInputValue('vs_win').trim();
-            const losePhotoUrl = interaction.fields.getTextInputValue('vs_lose').trim();
-
-            const cfg = loadConfigs();
-            if (!cfg[interaction.guildId]) cfg[interaction.guildId] = {};
-            cfg[interaction.guildId].gameResults = { channelId, submitterRoleIds, allowedRoleIds, winPhotoUrl, losePhotoUrl };
-            saveConfigs(cfg);
-            await interaction.reply({ content: '✅ Настройки ВС сохранены.', flags: 64 });
-            return true;
-        }
-
-        // Сохранение Заявок
-        if (interaction.isModalSubmit() && interaction.customId === 'apps_setup_modal') {
-            const channelId = interaction.fields.getTextInputValue('apps_channel').trim();
-            const mentionRoleIds = interaction.fields.getTextInputValue('apps_mention').split(',').map(s=>s.trim()).filter(s=>/^\d+$/.test(s));
-            const callRoleIds = interaction.fields.getTextInputValue('apps_call').split(',').map(s=>s.trim()).filter(s=>/^\d+$/.test(s));
-            const applicationPhotoUrl = interaction.fields.getTextInputValue('apps_photo').trim();
-
-            const cfg = loadConfigs();
-            if (!cfg[interaction.guildId]) cfg[interaction.guildId] = {};
-            cfg[interaction.guildId].applications = { familyChannelId: channelId, mentionRoleIds, callRoleIds, applicationPhotoUrl };
-            saveConfigs(cfg);
-            await interaction.reply({ content: '✅ Настройки заявок сохранены.', flags: 64 });
+        if (interaction.customId === 'open_apps_setup') {
+            await interaction.update({ content: '🛠 Введите команду `/модуль_заявки_настройка` для настройки модуля заявок.', components: [], embeds: [] });
+            try { await interaction.followUp({ content: '/модуль_заявки_настройка', flags: 64 }); } catch {}
             return true;
         }
         return false;
