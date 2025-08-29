@@ -47,7 +47,8 @@ const settingsCommand = {
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('open_vs_setup').setLabel('Настройка ВС').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('open_apps_setup').setLabel('Настройка Заявок').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('open_apps_setup').setLabel('Настройка Заявок').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('open_tickets_setup').setLabel('Настройка Тикетов').setStyle(ButtonStyle.Secondary)
         );
 
         await interaction.reply({ embeds: [embed], components: [row] });
@@ -73,6 +74,11 @@ const settingsCommand = {
         }
         if (interaction.customId === 'open_apps_setup') {
             const mention = getCmdMention('модуль_заявки_настройка');
+            await interaction.reply({ content: `Нажмите по команде для быстрого ввода: ${mention}`, flags: 64 });
+            return true;
+        }
+        if (interaction.customId === 'open_tickets_setup') {
+            const mention = getCmdMention('модуль_тикеты_настройка');
             await interaction.reply({ content: `Нажмите по команде для быстрого ввода: ${mention}`, flags: 64 });
             return true;
         }
